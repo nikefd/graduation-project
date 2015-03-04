@@ -1,0 +1,85 @@
+毕业设计大纲
+
+1、前台：
+嵌入ace编辑器如下
+<script src="src-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+<script>
+    var editor = ace.edit("editor");
+    editor.setTheme("ace/theme/twilight");
+    editor.getSession().setMode("ace/mode/c_cpp");
+    var a = editor.getValue();
+    document.write(a);
+</script>
+选择需要运行的语言，根据选择设置调用对应的js来对代码内容进行高亮显示
+点击运行，调用js，利用ace编辑器提供的api获取在输入框输入的代码
+editor.getValue()
+
+2、websocket
+当页面初次加载的时候，首先会检测当前的浏览器是否支持WebSocket并给出相应的提示信息，初始化成功以后，页面会加载对应的WebSocket事件处理函数
+socket.onopen = function(){
+    showServerResponse("Connected success.");
+}
+socket.onmessage = function(msg){
+    showServerResponse(msg.data);
+}
+socket.onclose = function(){
+    showServerResponse("The connection has been closed.");
+}
+点击run调用WebSocket对象向服务器发送信息
+$btnSend.on('click',function(){
+    var text = $txt.val();
+    if(text == ""){
+        return;
+    }
+    socket.send(text);
+    $txt.val("");    
+});
+
+
+3、服务器端
+选择Tornado Web服务器
+首先安装配置好服务器
+与websocket相关的代码包括四部分
+1）import需要的包
+2）websocket所需要的对应的类，包括打开，接收消息，关闭等
+3）Tornado初始化
+4）主程序
+主程序
+（1）后台监听对应端口
+if __name__ == "__main__":
+  application.listen(9090)
+  tornado.ioloop.IOLoop.instance().start()
+（2）若接收到消息则执行对应的函数，接收前台传来的代码并把其写入一个临时目录
+（3）编写两个个简单的脚本并将其添加在dockerfile中
+第一个来来检测文件是否存在，并执行相应的指令启动一个docker容器挂载这个临时目录，建立一个没有特权的用户
+if [ -z $1 ]; then
+  echo "you must provide a file"
+  exit 1
+fi
+第二个脚本选择对应的编程语言并执行对应的编译或者解释命令
+extension="${prog##*.}"
+case "$extension" in
+  "c")
+    gcc $prog && ./a.out
+    ;;
+  "go")
+    go run $prog
+    ;;
+（3）执行脚本文件在这个临时目录运行代码
+（4）将容器中运行后的logs发送至浏览器端显示
+（5）代码运行结束（或者超时被杀死），服务器端销毁容器
+
+资源限制：
+（1）docker可以设置cpu及memory的限制
+（2）network可以用tc来控制或者直接禁止
+（3）io限制可以用cgroup的blkio来实现
+（4）disk空间可以采用mount空间有限的device来实现或者别的方法
+
+4、docker
+下载安装docker
+1）基于ubuntu镜像创建一个基础docker容器
+2）下载需要的工具链
+3）安装编程语言运行所需环境
+4）配置好docker
+
+

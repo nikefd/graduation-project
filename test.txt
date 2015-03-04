@@ -1,0 +1,1 @@
+"function foo(items) {\nvar i;\nfor (i = 0; i < items.length; i++) {\nalert(\"Ace Rocks \" + items[i]);\nhahaha\n}\n}"
