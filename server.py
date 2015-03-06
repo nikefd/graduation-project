@@ -5,6 +5,7 @@ import logging
 import tornado.web
 import tornado.httpserver
 import tornado.websocket
+import subprocess
 
 #logging.basicConfig(level=logging.INFO,
 #                filename='myapp.log',
@@ -31,10 +32,13 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
 #	logging.debug("This is a debug message")
 #	logging.info("got message %r", message)
-	print "hello"
-	f = open("test.txt", "w")
+	f = open("test.cpp", "w")
 	print >> f, message
 	f.close()
+	subprocess.call("./run.sh test.cpp > test.txt", shell=True)
+	f = open("test.txt", "r")
+	message = f.read()
+	self.write_message(message)
 #	self.write_message("this is ") #Sends the given message to the client of this Web Socket.
 
 def main():

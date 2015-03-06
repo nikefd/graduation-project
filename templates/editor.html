@@ -24,17 +24,28 @@
 </head>
 <body>
 <div style="width: 500px; height:300px">
-    <pre id="editor">function foo(items) {
-	var i;
-	for (i = 0; i &lt; items.length; i++) {
-	    alert("Ace Rocks " + items[i]);
-	}
-}</pre>
+    <pre id="editor">
+    #include &ltiostream&gt
+    using namespace std;
+    
+    int main()
+    {
+	cout &lt&lt "Hello World" &lt&lt endl;
+	return 0;
+    }
+    </pre>
 </div>
 <form id="conversation" onsubmit="DispatchText()" action="javascript:void(0);">
     <input type="submit" id="sub" name="sub" value="Send" style="width:90px" />
 </form>
-<script src="/static/ace.js" type="text/javascript" charset="utf-8"></script>
+<div style="width: 500px; height: 200px; background: black; color: white; overflow: auto">
+Welcome to nikefd online IDE!
+<pre style="line-height: 10px; margin: 4px"> 
+</pre>
+$
+</div>
+
+<script src="/static/src-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
 <script>
     var editor = ace.edit("editor");
     editor.setTheme("ace/theme/twilight");
@@ -49,7 +60,7 @@
 
     function DispatchText(){
         var message = editor.getValue();
-	updater.socket.send(JSON.stringify(message));
+	updater.socket.send(message);
     }
 
     var updater = {
@@ -59,21 +70,24 @@
 	    var url = "ws://localhost:8888/websocket";
 	    updater.socket = new WebSocket(url);
 	    updater.socket.onopen = function(event) {
-		alert("websockt");
+//		alert("websockt");
 	    }
 	    updater.socket.onmessage = function(event) {
-		updater.showMessage(JSON.parse(event.data));
+//		alert("message is coming!" + event.data)
+		updater.showMessage(event.data);
 	    }
 	    updater.socket.onerror = function(event) {
 		alert("error");
 	    }
 	    updater.socket.onclose = function(event) {
-		alert("closed");
+//		alert("closed");
 	    }
 	},
 
 	showMessage: function(message) {
+	    $("pre").append(message + "</br>");
 	}
+
     };
 </script>
 </html>
