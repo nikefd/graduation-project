@@ -15,7 +15,7 @@ class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r"/", MainHandler),
-	    (r"/websocket", WebSocketHandler),
+            (r"/websocket", WebSocketHandler),
         ]
         settings = {
             "template_path": Settings.TEMPLATE_PATH,
@@ -30,6 +30,12 @@ class MainHandler(tornado.web.RequestHandler):
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
+        print type(message)
+        if message == dict:
+            print('yes')
+        else:
+            print('no')
+        print message
 #	logging.debug("This is a debug message")
 #	logging.info("got message %r", message)
 	f = open("test.cpp", "w")
