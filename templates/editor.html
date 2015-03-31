@@ -59,8 +59,8 @@
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
       <ul class="nav navbar-nav">
-        <li class="active"><a href="#">Link <span class="sr-only">(current)</span></a></li>
-        <li><a href="#">Link</a></li>
+        <li class="active"><a href="#">Learning<span class="sr-only">(current)</span></a></li>
+        <li><a href="#">Coding</a></li>
         <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Dropdown <span class="caret"></span></a>
           <ul class="dropdown-menu" role="menu">
@@ -81,17 +81,8 @@
         <button type="submit" class="btn btn-default">Submit</button>
       </form>
       <ul class="nav navbar-nav navbar-right">
-        <li><a href="#">Link</a></li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Dropdown <span class="caret"></span></a>
-          <ul class="dropdown-menu" role="menu">
-            <li><a href="#">Action</a></li>
-            <li><a href="#">Another action</a></li>
-            <li><a href="#">Something else here</a></li>
-            <li class="divider"></li>
-            <li><a href="#">Separated link</a></li>
-          </ul>
-        </li>
+        <li><a href="#">Register</a></li>
+        <li><a href="#">Login</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container-fluid -->
@@ -177,6 +168,7 @@ Welcome to nikefd online IDE!
 
     function DispatchText(){
         var message = editor.getValue();
+        message = ToUnicode(message);
 	    updater.socket.send(message);
     }
     function Reset(){
@@ -185,8 +177,8 @@ Welcome to nikefd online IDE!
     function Changemode(){
         var obj = document.getElementById('mode');
         var length = obj.options.length - 1;
-        for(var i = length; i >= 0; i--){
-            if(obj[i].selected == true){
+        for (var i = length; i >= 0; i--){
+            if (obj[i].selected == true){
                 editor.getSession().setMode("ace/mode/"+obj[i].value);
             }
         }
@@ -194,8 +186,8 @@ Welcome to nikefd online IDE!
     function Changedoc(){
         var obj = document.getElementById('doc');
         var length = obj.options.length - 1;
-        for(var i = length; i >= 0; i--){
-            if(obj[i].selected == true){
+        for (var i = length; i >= 0; i--){
+            if (obj[i].selected == true){
                 var docs = {
                     "name":"doc",
                     "type":obj[i].value
@@ -204,6 +196,25 @@ Welcome to nikefd online IDE!
                 editor.setValue(obj[i].value);
             }
         }
+    }
+    function ToUnicode(data){
+        var str = '';
+        for (var i = 0; i < data.length; i++){
+            l = parseInt(data[i].charCodeAt(0),10).toString(16).length;
+            if (l == 2){
+                str+="\\u00"+parseInt(data[i].charCodeAt(0),10).toString(16);
+            }
+            else if (l == 4){
+                str+="\\u"+parseInt(data[i].charCodeAt(0),10).toString(16);
+            }
+            else if (l == 3){
+                str+="\\u0"+parseInt(data[i].charCodeAt(0),10).toString(16);
+            }
+            else {
+                str+="\\u000"+parseInt(data[i].charCodeAt(0),10).toString(16);
+            }
+        }
+        return str;
     }
     var updater = {
 	socket: null,

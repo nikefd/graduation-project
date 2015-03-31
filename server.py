@@ -6,6 +6,7 @@ import tornado.web
 import tornado.httpserver
 import tornado.websocket
 import subprocess
+import re
 
 #logging.basicConfig(level=logging.INFO,
 #                filename='myapp.log',
@@ -30,22 +31,28 @@ class MainHandler(tornado.web.RequestHandler):
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
-        print type(message)
-        if message == dict:
-            print('yes')
-        else:
-            print('no')
+#        print type(message)
         print message
-#	logging.debug("This is a debug message")
-#	logging.info("got message %r", message)
+        umessage = eval("u'" + message + "'")
+        print umessage
+#        temp = re.findall('(?:\\\u)([\w]+)', message)    #change unicode to string
+#        length = len(temp)
+#        print length
+#        print temp
+#        result = ''
+        # for char in temp:
+#            print int(char, 16)
+            # result = result + map(unichr, [int(char, 16)])[0]
+#        print type(result)
+        # print result
+        umessage = umessage.encode("utf-8")
 	f = open("test.cpp", "w")
-	print >> f, message
+	print >> f, umessage
 	f.close()
 	subprocess.call("./run.sh test.cpp > test.txt", shell=True)
 	f = open("test.txt", "r")
-	message = f.read()
-	self.write_message(message)
-#	self.write_message("this is ") #Sends the given message to the client of this Web Socket.
+	umessage = f.read()
+	self.write_message(umessage)     #Sends the given message to the client of this Web Socket.
 
 def main():
     applicaton = Application()
