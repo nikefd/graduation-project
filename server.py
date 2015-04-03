@@ -6,7 +6,7 @@ import tornado.web
 import tornado.httpserver
 import tornado.websocket
 import subprocess
-import re
+import base64
 
 #logging.basicConfig(level=logging.INFO,
 #                filename='myapp.log',
@@ -33,7 +33,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
 #        print type(message)
         print message
-        umessage = eval("u'" + message + "'")
+        umessage = base64.b64decode(message) 
         print umessage
 #        temp = re.findall('(?:\\\u)([\w]+)', message)    #change unicode to string
 #        length = len(temp)
@@ -45,7 +45,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             # result = result + map(unichr, [int(char, 16)])[0]
 #        print type(result)
         # print result
-        umessage = umessage.encode("utf-8")
+#        umessage = umessage.encode("utf-8")
 	f = open("test.cpp", "w")
 	print >> f, umessage
 	f.close()

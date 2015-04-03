@@ -168,7 +168,7 @@ Welcome to nikefd online IDE!
 
     function DispatchText(){
         var message = editor.getValue();
-        message = ToUnicode(message);
+        message = Tobase64(message);
 	    updater.socket.send(message);
     }
     function Reset(){
@@ -197,23 +197,8 @@ Welcome to nikefd online IDE!
             }
         }
     }
-    function ToUnicode(data){
-        var str = '';
-        for (var i = 0; i < data.length; i++){
-            l = parseInt(data[i].charCodeAt(0),10).toString(16).length;
-            if (l == 2){
-                str+="\\u00"+parseInt(data[i].charCodeAt(0),10).toString(16);
-            }
-            else if (l == 4){
-                str+="\\u"+parseInt(data[i].charCodeAt(0),10).toString(16);
-            }
-            else if (l == 3){
-                str+="\\u0"+parseInt(data[i].charCodeAt(0),10).toString(16);
-            }
-            else {
-                str+="\\u000"+parseInt(data[i].charCodeAt(0),10).toString(16);
-            }
-        }
+    function Tobase64(data){
+	str = window.btoa(unescape(encodeURIComponent(data)));
         return str;
     }
     var updater = {
