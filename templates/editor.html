@@ -91,22 +91,22 @@
     <div id="book" class="col-sm-4">
     </div>
     <div id="complier" class="col-sm-8">
+        <label>Mode:</label>
         <select id="mode" onchange="Changemode()" class="btn">
             <option value="c_cpp">C/C++</option>
-            <option value="css">CSS</option>
             <option value="javascript">JavaScript</option>
             <option value="java">Java</option>
             <option value="html">HTML</option>
             <option value="python">Python</option>
             <option value="php">PHP</option>
         </select>
+        <label>Document:</label>
         <select id="doc" onchange="Changedoc()" class="btn">
-            <option value="c_cpp">C/C++</option>
-            <option value="css">CSS</option>
-            <option value="javascript">JavaScript</option>
+            <option value="cpp">C/C++</option>
+            <option value="js">JavaScript</option>
             <option value="java">Java</option>
             <option value="html">HTML</option>
-            <option value="python">Python</option>
+            <option value="py">Python</option>
             <option value="php">PHP</option>
         </select>
                   
@@ -131,7 +131,7 @@ int main()
             </p>
         </div>
         <div style="width: 100%; height: 200px; background: #17171a; color: white; overflow: auto; float:right; padding:10px">
-        <pre style="line-height: 15px; margin: 4px; background: #17171a; padding: 0; border: 0; color: white; font-size: 15px;"> 
+        <pre id="result" style="line-height: 15px; margin: 4px; background: #17171a; padding: 0; border: 0; color: white; font-size: 15px;"> 
 Welcome to nikefd online IDE!
         </pre> $
         </div>
@@ -168,6 +168,7 @@ Welcome to nikefd online IDE!
 
     function DispatchText(){
         var message = editor.getValue();
+        message = "code" + message;
         message = Tobase64(message);
 	    updater.socket.send(message);
     }
@@ -185,15 +186,15 @@ Welcome to nikefd online IDE!
     }
     function Changedoc(){
         var obj = document.getElementById('doc');
+        var mode = document.getElementById('mode');
         var length = obj.options.length - 1;
         for (var i = length; i >= 0; i--){
             if (obj[i].selected == true){
-                var docs = {
-                    "name":"doc",
-                    "type":obj[i].value
-                };
+                var docs = "docs" + obj[i].value;
+                docs = Tobase64(docs);
                 updater.socket.send(docs);
-                editor.setValue(obj[i].value);
+                editor.getSession().setMode("ace/mode/"+mode[i].value);
+                $("#mode option").eq(i).attr("selected", true)            
             }
         }
     }
@@ -205,25 +206,29 @@ Welcome to nikefd online IDE!
 	socket: null,
 	
 	start: function() {
-	    var url = "ws://localhost:8888/websocket";
+	    var url = "ws://localhost:8889/websocket";
 	    updater.socket = new WebSocket(url);
 	    updater.socket.onopen = function(event) {
-//		alert("websockt");
 	    }
 	    updater.socket.onmessage = function(event) {
-//		alert("message is coming!" + event.data)
 		updater.showMessage(event.data);
 	    }
 	    updater.socket.onerror = function(event) {
 		alert("error");
 	    }
 	    updater.socket.onclose = function(event) {
-//		alert("closed");
 	    }
 	},
 
 	showMessage: function(message) {
-	    $("pre").append(message);
+        if (message.substr(0, 4) == "code"){
+            message = message.substr(4);
+	        $("#result").append(message);
+        }
+        else if (message.substr(0, 4) == "docs"){
+            message = message.substr(4);
+            editor.setValue(message);
+        }
 	}
 
     };

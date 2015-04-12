@@ -14,7 +14,7 @@ fi
 extension="${prog##*.}"
 case "$extension" in
     "cpp")
-	g++ $prog && ./a.out
+    g++ $prog 2> test.txt
 	;;
      *)
 	echo "invalid language"
