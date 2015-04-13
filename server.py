@@ -44,7 +44,9 @@ class MainHandler(tornado.web.RequestHandler):
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
+        global p
         message_r = base64.b64decode(message)
+        print message_r
         if message_r[0:4] == "code":
             message_r = message_r[4:]
             f = open("test.cpp", "w")
@@ -57,25 +59,23 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
                 p = Popen("./a.out", stdin = PIPE, stdout = PIPE, stderr = PIPE, bufsize = 1)
                 setNonBlocking(p.stdout)
                 setNonBlocking(p.stderr)
-                while True:
-                    try:
-                        time.sleep(.1)
-                        message_s = p.stdout.read()
-                    except IOError:
-                        pass
-                    else:
-                        message_s = "code" + message_s
-                        self.write_message(message_s)
-                        print message_s
-                    if p.poll() == 0:
-                        break
-                    line = raw_input()
-                    p.stdin.write(line)
-                    p.stdin.write('\n')
-                    p.stdin.flush()
+                try:
+                    time.sleep(.1)
+                    message_s = p.stdout.read()
+                except IOError:
+                    pass
+                else:
+                    message_s = "code" + message_s
+                    self.write_message(message_s)
+                    print message_s
+                if p.poll() != 0:
+                    message_s = "input"
+                    self.write_message(message_s)
             else:
                 print message_s
                 message_s = "code" + message_s
+                self.write_message(message_s)
+            f.close()
         elif message_r[0:4] == "docs":
             message_r = message_r[4:]
             docs = "example." + message_r
@@ -84,9 +84,29 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             message_s = f.read()
             message_s = "docs" + message_s
             self.write_message(message_s)
-        f.close()
-        print message_s
-        self.write_message(message_s)     #Sends the given message to the client of this Web Socket.
+            f.close()
+        elif message_r[0:4] == "inpt":
+            message_r = message_r[4:]
+            p.stdin.write(message_r)
+            p.stdin.write('\n')
+            p.stdin.flush()
+            try:
+                time.sleep(.1)
+                message_s = p.stdout.read()
+            except IOError:
+                pass
+            else:
+                message_s = "code" + message_s
+                self.write_message(message_s)
+                print message_s
+            if p.poll() != 0:
+                message_s = "input"
+                self.write_message(message_s)
+            else:
+                message_s = "end"
+                self.write_message(message_s)
+#        self.write_message(message_s)     #Sends the given message to the client of this Web Socket.
+
 
 def main():
     applicaton = Application()
