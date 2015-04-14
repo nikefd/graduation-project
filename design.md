@@ -24,4 +24,7 @@
 
     sudo docker run garland/butterfly:latest
 
+安装python的tailer来实现tail功能
+pip install tailer
 
+记得修改ip地址

@@ -10,6 +10,7 @@ import base64
 import os
 import fcntl
 import time
+import tailer
 from subprocess import Popen, PIPE
 
 
@@ -55,12 +56,14 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             subprocess.call("./run.sh test.cpp", shell=True)
             f = open("test.txt", "r")
             message_s = f.read()
+            f.close()
             if len(message_s) == 0:
-                p = Popen("./a.out", stdin = PIPE, stdout = PIPE, stderr = PIPE, bufsize = 1)
+                p = Popen("strace -o state.txt ./a.out", stdin = PIPE, stdout = PIPE, stderr = PIPE, bufsize = 1, shell=True)
                 setNonBlocking(p.stdout)
                 setNonBlocking(p.stderr)
+                while (tailer.tail(open('state.txt'), 1) != ['read(0,']) & (p.poll() != 0):   #some bugs here
+                    continue
                 try:
-                    time.sleep(.1)
                     message_s = p.stdout.read()
                 except IOError:
                     pass
@@ -71,11 +74,36 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
                 if p.poll() != 0:
                     message_s = "input"
                     self.write_message(message_s)
+
+#                while True:
+#                    try:
+#                        #time.sleep(.1)
+#                        #if in the input mode
+#                        #print tailer.tail(open('state.txt'), 1)
+#                        if tailer.tail(open('state.txt'), 1) == ['read(0,']:
+#                            message_s = "input"
+#                            self.write_message(message_s)
+#                            break
+#                        message_s = p.stdout.read()
+#                    except IOError:
+#                        if p.poll() == 0:
+#                            message_s = "end"
+#                            self.write_message(message_s)
+#                            break
+#                        continue
+#                    else:
+#                        message_s = "code" + message_s
+#                        self.write_message(message_s)
+#                        print message_s
+#                        if p.poll() == 0:
+#                            message_s = "end"
+#                            self.write_message(message_s)
+#                        break
+
             else:
                 print message_s
                 message_s = "code" + message_s
                 self.write_message(message_s)
-            f.close()
         elif message_r[0:4] == "docs":
             message_r = message_r[4:]
             docs = "example." + message_r
@@ -84,27 +112,56 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             message_s = f.read()
             message_s = "docs" + message_s
             self.write_message(message_s)
-            f.close()
         elif message_r[0:4] == "inpt":
             message_r = message_r[4:]
             p.stdin.write(message_r)
             p.stdin.write('\n')
             p.stdin.flush()
+            print "r:"
+            print message_r
+            time.sleep(.001)
+            while (tailer.tail(open('state.txt'), 1) != ['read(0,']) & (p.poll() != 0):
+                continue
+            print tailer.tail(open('state.txt'), 1)
+            print p.poll()
             try:
-                time.sleep(.1)
+                print "input"
                 message_s = p.stdout.read()
             except IOError:
                 pass
             else:
+                print message_s
                 message_s = "code" + message_s
                 self.write_message(message_s)
                 print message_s
             if p.poll() != 0:
                 message_s = "input"
                 self.write_message(message_s)
-            else:
-                message_s = "end"
-                self.write_message(message_s)
+
+#            while True:
+#                try:
+#                    #time.sleep(.1)
+#                    #if in the input mode
+#                    #print tailer.tail(open('state.txt'), 1)
+#                    if tailer.tail(open('state.txt'), 1) == ['read(0,']:
+#                        message_s = "input"
+#                        self.write_message(message_s)
+#                        break
+#                    message_s = p.stdout.read()
+#                except IOError:
+#                    if p.poll() == 0:
+#                        message_s = "end"
+#                        self.write_message(message_s)
+#                        break
+#                    continue
+#                else:
+#                    message_s = "code" + message_s
+#                    self.write_message(message_s)
+#                    print message_s
+#                    if p.poll() == 0:
+#                        message_s = "end"
+#                        self.write_message(message_s)
+#                    break
 #        self.write_message(message_s)     #Sends the given message to the client of this Web Socket.
 
 
