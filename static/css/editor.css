@@ -1,0 +1,83 @@
+body {
+    overflow: hidden;
+}
+#book {
+
+}
+#complier {
+    overflow: hidden;
+}
+.ace_editor {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+	height: 480px;
+    float: right;
+    margin: 0;
+} 
+.ace_editor.fullScreen {
+    height: auto;
+    width: auto;
+    border: 0;
+    margin: 0;
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+}
+
+.fullScreen {
+    overflow: hidden
+}
+#console {
+    top: 60px;
+    right: 40px;
+  position: absolute;
+  width: 40%;
+  height: 300px;
+  background-color:black;
+  float: right;
+  z-index: 8;
+}
+#console div pre {
+    background-color: black;
+    color: #fff;
+}
+/* The inner console element. */
+.jqconsole {
+    padding: 10px;
+}
+/* The cursor. */
+.jqconsole-cursor {
+    background-color: gray;
+}
+/* The cursor color when the console looses focus. */
+.jqconsole-blurred .jqconsole-cursor {
+    background-color: #666;
+}
+/* The current prompt text color */
+.jqconsole-prompt {
+    color: #fff;
+}
+/* The command history */
+.jqconsole-old-prompt {
+    color: #fff;
+    font-weight: normal;
+}
+/* The text color when in input mode. */
+.jqconsole-input {
+    color: #dd0;
+}
+/* Previously entered input. */
+.jqconsole-old-input {
+    color: #bb0;
+    font-weight: normal;
+}
+/* The text color of the output. */
+.jqconsole-output {
+    color: white;
+}
