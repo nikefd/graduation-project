@@ -62,6 +62,15 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
                 setNonBlocking(p.stdout)
                 setNonBlocking(p.stderr)
                 while (tailer.tail(open('state.txt'), 1) != ['read(0,']) & (p.poll() != 0):   #some bugs here
+                    while True:
+                        try:
+                            message_s = p.stdout.read()
+                        except IOError:
+                            break
+                        else:
+                            message_s = "code" + message_s
+                            self.write_message(message_s)
+                            print message_s
                     continue
                 try:
                     message_s = p.stdout.read()
@@ -74,7 +83,15 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
                 if p.poll() != 0:
                     message_s = "input"
                     self.write_message(message_s)
-
+                #when the program meet somethong wrong
+                try:
+                    message_s = p.stderr.read()
+                except IOError:
+                    pass
+                else:
+                    message_s = "code" + message_s
+                    self.write_message(message_s)
+                    print message_s
 #                while True:
 #                    try:
 #                        #time.sleep(.1)
@@ -121,6 +138,15 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             print message_r
             time.sleep(.001)
             while (tailer.tail(open('state.txt'), 1) != ['read(0,']) & (p.poll() != 0):
+                while True:
+                    try:
+                        message_s = p.stdout.read()
+                    except IOError:
+                        break
+                    else:
+                        message_s = "code" + message_s
+                        self.write_message(message_s)
+                        print message_s
                 continue
             print tailer.tail(open('state.txt'), 1)
             print p.poll()
@@ -138,6 +164,15 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
                 message_s = "input"
                 self.write_message(message_s)
 
+            #when the program meet somethong wrong
+            try:
+                message_s = p.stderr.read()
+            except IOError:
+                pass
+            else:
+                message_s = "code" + message_s
+                self.write_message(message_s)
+                print message_s
 #            while True:
 #                try:
 #                    #time.sleep(.1)
