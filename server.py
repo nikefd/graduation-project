@@ -1,7 +1,17 @@
 #!/usr/bin/python2
 
+import struct
+import termios
+import tornado.process
+import tornado.options
+import sys
+import signal
+import pwd
+import time
+import io
 import Settings
 import logging
+import tornado.ioloop
 import tornado.web
 import tornado.httpserver
 import tornado.websocket
@@ -9,18 +19,67 @@ import subprocess
 import base64
 import os
 import fcntl
-import time
-import tailer
+import pty
 from subprocess import Popen, PIPE
+from logging import getLogger
 
+ioloop = tornado.ioloop.IOLoop.instance()
+log = getLogger()
+class Route(tornado.web.RequestHandler):
+    @property
+    def log(self):
+        return log
 
-def setNonBlocking(fd):
-    """
-    Set the file description of the given file descriptor to non-blocking.
-    """
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-    flags = flags | os.O_NONBLOCK
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+class User(object):
+    def __init__(self, uid=None, name=None):
+        print "uid"
+        print uid
+        if uid is None and not name:
+            uid = os.getuid()
+            print "uid2"
+            print uid
+        if uid is not None:
+            self.pw = pwd.getpwuid(uid)
+            print "here is"
+            print self.pw
+        else:
+            self.pw = pwd.getpwnam(name)
+            print "here is pw"
+            print self.pw
+        if self.pw is None:
+            raise LookupError('Unknown user')
+
+    @property
+    def uid(self):
+        return self.pw.pw_uid
+
+    @property
+    def gid(self):
+        return self.pw.pw_gid
+
+    @property
+    def name(self):
+        return self.pw.pw_name
+
+    @property
+    def dir(self):
+        return self.pw.pw_dir
+
+    @property
+    def shell(self):
+        return self.pw.pw_shell
+
+    @property
+    def root(self):
+        return self.uid == 0
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return self.uid == other.uid
+
+    def __repr__(self):
+        return "%s [%r]" % (self.name, self.uid)
 
 #logging.basicConfig(level=logging.INFO,
 #                filename='myapp.log',
@@ -30,7 +89,7 @@ class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r"/", MainHandler),
-            (r"/websocket", WebSocketHandler),
+            (r"/websocket(?:/user/([^/]+))?/?(?:/wd/(.+))?", WebSocketHandler),
         ]
         settings = {
             "template_path": Settings.TEMPLATE_PATH,
@@ -43,84 +102,128 @@ class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("editor.html")
 
-class WebSocketHandler(tornado.websocket.WebSocketHandler):
+class WebSocketHandler(Route, tornado.websocket.WebSocketHandler):
+
+    terminals = set()
+    def open(self, user, path):
+        self.fd = None
+        path = "/home/nikefd/workplace/graduation-project"
+        self.path = path
+        # print "path"
+        # print path
+        self.callee = User(name='nikefd')
+        self.pty()
+
+    def pty(self):
+        self.pid, self.fd = pty.fork()
+        # print "pid fd:"
+        # print self.pid
+        # print self.fd
+        if self.pid == 0:
+            self.shell()
+        else:
+            self.communicate()
+
+    def shell(self):
+        # print "callee:"
+        # print self.callee
+        try:
+            os.chdir(self.path or self.callee.dir) #Change the current working directory to path
+            # print "self.path"
+            # print self.path
+            # print "self.callee.dir"
+            # print self.callee.dir
+        except:
+            pass
+        env = os.environ
+        if os.path.exists('/usr/bin/su'):
+            args = ['/usr/bin/su']
+        else:
+            args = ['/bin/su']
+        args.append(self.callee.name)
+        os.execvpe(args[0], args, env)
+
+    def communicate(self):
+        fcntl.fcntl(self.fd, fcntl.F_SETFL, os.O_NONBLOCK)
+
+        print "self.fd:"
+        print self.fd
+        def utf8_error(e):
+            self.log.error(e)
+
+        self.reader = io.open(
+            self.fd,
+            'rb',
+            buffering=0,
+            closefd=False
+        )
+        self.writer = io.open(
+            self.fd,
+            'wt',
+            encoding='utf-8',
+            closefd=False
+        )
+        ioloop.add_handler(
+            self.fd, self.shell_handler, ioloop.READ | ioloop.ERROR)
+
+    def shell_handler(self, fd, events):
+        if events & ioloop.READ:
+            try:
+                read = self.reader.read()
+            except IOError:
+                read = ''
+
+            self.log.info('READ>%r' % read)
+            print "read:"
+            print read
+            print "read-end"
+            read = "code" + read
+            if read and len(read) != 0 and self.ws_connection:
+                self.write_message(read.decode('utf-8', 'replace'))
+                self.write_message("input")
+            else:
+                events = ioloop.ERROR
+
     def on_message(self, message):
-        global p
+        if not hasattr(self, 'writer'):
+            self.on_close()
+            self.close()
+            return
+        command = ""
         message_r = base64.b64decode(message)
         print message_r
         if message_r[0:4] == "code":
             message_r = message_r[4:]
-            f = open("test.cpp", "w")
-            print >> f, message_r
-            f.close()
-            subprocess.call("./run.sh test.cpp", shell=True)
-            f = open("test.txt", "r")
-            message_s = f.read()
-            f.close()
-            if len(message_s) == 0:
-                p = Popen("strace -o state.txt ./a.out", stdin = PIPE, stdout = PIPE, stderr = PIPE, bufsize = 1, shell=True)
-                setNonBlocking(p.stdout)
-                setNonBlocking(p.stderr)
-                while (tailer.tail(open('state.txt'), 1) != ['read(0,']) & (p.poll() != 0):   #some bugs here
-                    while True:
-                        try:
-                            message_s = p.stdout.read()
-                        except IOError:
-                            break
-                        else:
-                            message_s = "code" + message_s
-                            self.write_message(message_s)
-                            print message_s
-                    continue
-                try:
-                    message_s = p.stdout.read()
-                except IOError:
-                    pass
-                else:
-                    message_s = "code" + message_s
-                    self.write_message(message_s)
-                    print message_s
-                if p.poll() != 0:
-                    message_s = "input"
-                    self.write_message(message_s)
-                #when the program meet somethong wrong
-                try:
-                    message_s = p.stderr.read()
-                except IOError:
-                    pass
-                else:
-                    message_s = "code" + message_s
-                    self.write_message(message_s)
-                    print message_s
-#                while True:
-#                    try:
-#                        #time.sleep(.1)
-#                        #if in the input mode
-#                        #print tailer.tail(open('state.txt'), 1)
-#                        if tailer.tail(open('state.txt'), 1) == ['read(0,']:
-#                            message_s = "input"
-#                            self.write_message(message_s)
-#                            break
-#                        message_s = p.stdout.read()
-#                    except IOError:
-#                        if p.poll() == 0:
-#                            message_s = "end"
-#                            self.write_message(message_s)
-#                            break
-#                        continue
-#                    else:
-#                        message_s = "code" + message_s
-#                        self.write_message(message_s)
-#                        print message_s
-#                        if p.poll() == 0:
-#                            message_s = "end"
-#                            self.write_message(message_s)
-#                        break
+            if message_r[0:4] == "cpp ":
+                message_r = message_r[4:]
+                f = open("test.cpp", "w")
+                print >> f, message_r
+                f.close()
+                command = "g++ test.cpp -o test && ./test"
+            elif message_r[0:4] == "js  ":
+                message_r = message_r[4:]
+                message_s = ''
+                label = "js"
+            elif message_r[0:4] == "java":
+                message_r = message_r[4:]
+                label = "java"
+            elif message_r[0:4] == "html":
+                message_r = message_r[4:]
+                label = "html"
+            elif message_r[0:4] == "py  ":
+                message_r = message_r[4:]
+                f = open("test.py", "w")
+                print >> f, message_r
+                f.close()
+                command = "python test.py"
+            elif message_r[0:4] == "php ":
+                message_r = message_r[4:]
+                message_s = ''
+                label = "php"
+            self.writer.write(command.decode('utf-8', 'replace'))
+            self.writer.write(u'\n')
+            self.writer.flush()
 
-            else:
-                print message_s
-                message_s = "code" + message_s
-                self.write_message(message_s)
         elif message_r[0:4] == "docs":
             message_r = message_r[4:]
             docs = "example." + message_r
@@ -131,80 +234,17 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             self.write_message(message_s)
         elif message_r[0:4] == "inpt":
             message_r = message_r[4:]
-            p.stdin.write(message_r)
-            p.stdin.write('\n')
-            p.stdin.flush()
-            print "r:"
-            print message_r
-            time.sleep(.001)
-            while (tailer.tail(open('state.txt'), 1) != ['read(0,']) & (p.poll() != 0):
-                while True:
-                    try:
-                        message_s = p.stdout.read()
-                    except IOError:
-                        break
-                    else:
-                        message_s = "code" + message_s
-                        self.write_message(message_s)
-                        print message_s
-                continue
-            print tailer.tail(open('state.txt'), 1)
-            print p.poll()
-            try:
-                print "input"
-                message_s = p.stdout.read()
-            except IOError:
-                pass
-            else:
-                print message_s
-                message_s = "code" + message_s
-                self.write_message(message_s)
-                print message_s
-            if p.poll() != 0:
-                message_s = "input"
-                self.write_message(message_s)
-
-            #when the program meet somethong wrong
-            try:
-                message_s = p.stderr.read()
-            except IOError:
-                pass
-            else:
-                message_s = "code" + message_s
-                self.write_message(message_s)
-                print message_s
-#            while True:
-#                try:
-#                    #time.sleep(.1)
-#                    #if in the input mode
-#                    #print tailer.tail(open('state.txt'), 1)
-#                    if tailer.tail(open('state.txt'), 1) == ['read(0,']:
-#                        message_s = "input"
-#                        self.write_message(message_s)
-#                        break
-#                    message_s = p.stdout.read()
-#                except IOError:
-#                    if p.poll() == 0:
-#                        message_s = "end"
-#                        self.write_message(message_s)
-#                        break
-#                    continue
-#                else:
-#                    message_s = "code" + message_s
-#                    self.write_message(message_s)
-#                    print message_s
-#                    if p.poll() == 0:
-#                        message_s = "end"
-#                        self.write_message(message_s)
-#                    break
-#        self.write_message(message_s)     #Sends the given message to the client of this Web Socket.
-
+            message_r = message_r + "\n"
+            self.writer.write(message_r.decode('utf-8', 'replace'))
+            self.writer.flush()
+            self.write_message("input")
 
 def main():
     applicaton = Application()
     http_server = tornado.httpserver.HTTPServer(applicaton)
-    http_server.listen(8889)
-    tornado.ioloop.IOLoop.instance().start()
+    http_server.listen(8888)
+    ioloop = tornado.ioloop.IOLoop.instance()
+    ioloop.start()
 
 if __name__ == "__main__":
     main()

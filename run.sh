@@ -14,7 +14,7 @@ fi
 extension="${prog##*.}"
 case "$extension" in
     "cpp")
-    g++ $prog 2> test.txt
+    docker run --rm --volumes-from dbdata garland/butterfly g++ $1 $2 $3 2> /opt/gr/test.txt
 	;;
      *)
 	echo "invalid language"

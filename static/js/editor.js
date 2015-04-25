@@ -37,6 +37,29 @@ updater.start();
 function DispatchText(){
     jqconsole.Reset();
     var message = editor.getValue();
+    var mode = document.getElementById('mode');
+    switch(jQuery("#mode option:selected").val()){
+        case "c_cpp":
+            message = "cpp " + message;
+            break;
+        case "javascript":
+            message = "js  " + message;
+            break;
+        case "java":
+            message = "java" + message;
+            break;
+        case "html":
+            message = "html" + message;
+            break;
+        case "python":
+            message = "py  " + message;
+            break;
+        case "php":
+            message = "php " + message;
+            break;
+        default:
+            break;
+    }
     message = "code" + message;
     message = Tobase64(message);
     updater.socket.send(message);
@@ -91,7 +114,7 @@ socket: null,
 
 start: function() {
     //var url = "ws://180.160.25.115:8889/websocket";
-    var url = "ws://localhost:8889/websocket";
+    var url = "ws://localhost:8888/websocket";
     updater.socket = new WebSocket(url);
     updater.socket.onopen = function(event) {
     }
