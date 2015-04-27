@@ -13,11 +13,10 @@ MAINTAINER nikefd <nikefd@gmail.com>
 RUN apt-get update
 
 # Install some tools
-RUN apt-get install -y build-essential python python-tornado strace python-pip
-RUN pip install tailer
+RUN apt-get install -y python2.7 python-tornado
 
 #expose ports
-EXPOSE 8889
+EXPOSE 8888
 
 # Set the default directory where CMD will execute
 WORKDIR /opt/gr

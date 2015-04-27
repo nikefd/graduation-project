@@ -25,6 +25,7 @@ from logging import getLogger
 
 ioloop = tornado.ioloop.IOLoop.instance()
 log = getLogger()
+outlabel = True
 class Route(tornado.web.RequestHandler):
     @property
     def log(self):
@@ -107,11 +108,11 @@ class WebSocketHandler(Route, tornado.websocket.WebSocketHandler):
     terminals = set()
     def open(self, user, path):
         self.fd = None
-        path = "/home/nikefd/workplace/graduation-project"
+        path = "/home/foo/workplace/graduation-project"
         self.path = path
         # print "path"
         # print path
-        self.callee = User(name='nikefd')
+        self.callee = User(name='foo')
         self.pty()
 
     def pty(self):
@@ -125,14 +126,8 @@ class WebSocketHandler(Route, tornado.websocket.WebSocketHandler):
             self.communicate()
 
     def shell(self):
-        # print "callee:"
-        # print self.callee
         try:
             os.chdir(self.path or self.callee.dir) #Change the current working directory to path
-            # print "self.path"
-            # print self.path
-            # print "self.callee.dir"
-            # print self.callee.dir
         except:
             pass
         env = os.environ
@@ -177,12 +172,14 @@ class WebSocketHandler(Route, tornado.websocket.WebSocketHandler):
             print "read:"
             print read
             print "read-end"
+            global outlabel
             read = "code" + read
-            if read and len(read) != 0 and self.ws_connection:
+            if read and len(read) != 0 and self.ws_connection and outlabel:
                 self.write_message(read.decode('utf-8', 'replace'))
-                self.write_message("input")
             else:
                 events = ioloop.ERROR
+            self.write_message("input")
+            outlabel = True
 
     def on_message(self, message):
         if not hasattr(self, 'writer'):
@@ -196,10 +193,10 @@ class WebSocketHandler(Route, tornado.websocket.WebSocketHandler):
             message_r = message_r[4:]
             if message_r[0:4] == "cpp ":
                 message_r = message_r[4:]
-                f = open("test.cpp", "w")
+                f = open("/dbdata/foo/test.cpp", "w")
                 print >> f, message_r
                 f.close()
-                command = "g++ test.cpp -o test && ./test"
+                command = "docker run --rm --volumes-from dbdata nikefd/gcc g++-4.8 /dbdata/foo/test.cpp -o /dbdata/foo/test && /dbdata/foo/test"
             elif message_r[0:4] == "js  ":
                 message_r = message_r[4:]
                 message_s = ''
@@ -212,14 +209,15 @@ class WebSocketHandler(Route, tornado.websocket.WebSocketHandler):
                 label = "html"
             elif message_r[0:4] == "py  ":
                 message_r = message_r[4:]
-                f = open("test.py", "w")
+                f = open("/dbdata/foo/test.py", "w")
                 print >> f, message_r
                 f.close()
-                command = "python test.py"
+                command = "docker run --rm -i --volumes-from dbdata nikefd/python python /dbdata/foo/test.py"
             elif message_r[0:4] == "php ":
                 message_r = message_r[4:]
-                message_s = ''
-                label = "php"
+                f = open("/dbdata/foo/test.php", "w")
+                print >> f, message_r
+                command = "docker run --rm -i --volumes-from dbdata nikefd/php php /dbdata/foo/test.php"
             self.writer.write(command.decode('utf-8', 'replace'))
             self.writer.write(u'\n')
             self.writer.flush()
@@ -238,6 +236,8 @@ class WebSocketHandler(Route, tornado.websocket.WebSocketHandler):
             self.writer.write(message_r.decode('utf-8', 'replace'))
             self.writer.flush()
             self.write_message("input")
+        global outlabel
+        outlabel = False
 
 def main():
     applicaton = Application()

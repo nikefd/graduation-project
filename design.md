@@ -57,3 +57,20 @@ pip install tailer
 3. 对docker进行进一步的学习，将每种编译环境配置一个docker，根据用户需求调用不同的docker
 
 4. 对整体界面及部分功能进行进一步的优化及完善
+
+调用编译器
+C/C++编译器：
+g++版本 g++-4.8
+
+python版本
+python 2.7.9
+
+php版本
+
+java版本
+
+go语言
+
+
+
+sudo docker run --rm -ti -p 8888:8888 -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):$(which docker) --volumes-from dbdata nikefd/tjide1
