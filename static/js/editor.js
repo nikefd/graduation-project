@@ -114,7 +114,8 @@ socket: null,
 
 start: function() {
     //var url = "ws://180.160.25.115:8889/websocket";
-    var url = "ws://localhost:8888/websocket";
+    host = $("#ip").data('ip');
+    var url = "ws://"+ host + ":8888/websocket";
     updater.socket = new WebSocket(url);
     updater.socket.onopen = function(event) {
     }

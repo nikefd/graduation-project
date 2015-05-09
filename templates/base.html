@@ -1,0 +1,72 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/> 
+    <title>{{ escape(handler.settings["blog_title"]) }}</title>
+    <link rel="stylesheet" href="{{ static_url("blog.css") }}" type="text/css"/>
+    <link rel="alternate" href="/feed" type="application/atom+xml" title="{{ escape(handler.settings["blog_title"]) }}"/>
+    <link rel="stylesheet" href="../static/css/bootstrap.min.css" />
+    <link rel="stylesheet "href="../static/css/editor.css" type="text/css" />
+    <link rel="stylesheet" href="./../static/dist/themes/default/style.min.css" />
+    <style>
+  		html, body { background:#ebebeb; font-size:10px; font-family:Verdana; margin:0; padding:0; }
+  		#container { min-width:320px; margin:0px auto 0 auto; background:white; border-radius:0px; padding:0px; overflow:hidden; }
+  		#tree { float:left; min-width:319px; border-right:1px solid silver; overflow:auto; padding:0px 0; }
+  
+  		#tree .folder { background:url('./../static/file_sprite.png') right bottom no-repeat; }
+  		#tree .file { background:url('./../static/file_sprite.png') 0 0 no-repeat; }
+  		#tree .file-pdf { background-position: -32px 0 }
+  		#tree .file-as { background-position: -36px 0 }
+  		#tree .file-c { background-position: -72px -0px }
+  		#tree .file-iso { background-position: -108px -0px }
+  		#tree .file-htm, #tree .file-html, #tree .file-xml, #tree .file-xsl { background-position: -126px -0px }
+  		#tree .file-cf { background-position: -162px -0px }
+  		#tree .file-cpp { background-position: -216px -0px }
+  		#tree .file-cs { background-position: -236px -0px }
+  		#tree .file-sql { background-position: -272px -0px }
+  		#tree .file-xls, #tree .file-xlsx { background-position: -362px -0px }
+  		#tree .file-h { background-position: -488px -0px }
+  		#tree .file-crt, #tree .file-pem, #tree .file-cer { background-position: -452px -18px }
+  		#tree .file-php { background-position: -108px -18px }
+  		#tree .file-jpg, #tree .file-jpeg, #tree .file-png, #tree .file-gif, #tree .file-bmp { background-position: -126px -18px }
+  		#tree .file-ppt, #tree .file-pptx { background-position: -144px -18px }
+  		#tree .file-rb { background-position: -180px -18px }
+  		#tree .file-text, #tree .file-txt, #tree .file-md, #tree .file-log, #tree .file-htaccess { background-position: -254px -18px }
+  		#tree .file-doc, #tree .file-docx { background-position: -362px -18px }
+  		#tree .file-zip, #tree .file-gz, #tree .file-tar, #tree .file-rar { background-position: -416px -18px }
+  		#tree .file-js { background-position: -434px -18px }
+  		#tree .file-css { background-position: -144px -0px }
+  		#tree .file-fla { background-position: -398px -0px }
+    </style>
+
+
+    {% block head %}{% end %}
+  </head>
+  <body>
+    <nav class="navbar navbar-default" style="margin-bottom:5px">
+      <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+          <a class="navbar-brand" href="/">{{ escape(handler.settings["blog_title"]) }}</a>
+        </div>
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="/">Learning<span class="sr-only">(current)</span></a></li>
+            <li><a href="/">Coding</a></li>
+            </li>
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+             {% if current_user %}
+               <li><a href="/auth/logout?next={{ url_escape(request.uri) }}">{{ _("Sign out") }}</a></li>
+             {% else %}
+               {% raw _('<li><a href="%(url)s">Sign in</a></li>') % {"url": "/auth/login"} %}
+               {% raw _('<li><a href="%(url)s">Register</a></li>') % {"url": "/auth/create"} %}
+             {% end %}
+          </ul>
+        </div><!-- /.navbar-collapse -->
+      </div><!-- /.container-fluid -->
+    </nav>
+    <div id="content">{% block body %}{% end %}</div>
+    </div>
+    {% block bottom %}{% end %}
+  </body>
+</html>

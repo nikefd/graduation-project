@@ -13,7 +13,9 @@ MAINTAINER nikefd <nikefd@gmail.com>
 RUN apt-get update
 
 # Install some tools
-RUN apt-get install -y python2.7 python-tornado
+RUN apt-get install -y python2.7 python-tornado python-pip libffi-dev libssl-dev python-dev
+
+RUN pip install bcrypt futures Markdown torndb
 
 #expose ports
 EXPOSE 8888
@@ -22,12 +24,10 @@ EXPOSE 8888
 WORKDIR /opt/gr
 
 
-#RUN groupadd -r postgres && useradd -r -g postgres foo && echo "foo:foo" | chpasswd && adduser foo sudo
-RUN groupadd -r postgres && useradd -r -g postgres foo && echo "foo:123456" | chpasswd && adduser foo sudo
+#RUN groupadd -r postgres && useradd -r -g postgres tjide && echo "tjide:tjide" | chpasswd && adduser tjide sudo
+RUN groupadd -r postgres && useradd -r -g postgres tjide && echo "tjide:123456" | chpasswd && adduser tjide sudo
 
-RUN mkdir -p /home/foo && chown -R foo:postgres /home/foo
-
-USER foo
+RUN mkdir -p /home/tjide && chown -R tjide:postgres /home/tjide
 
 ADD . /opt/gr
 #ENTRYPOINT ["python", "server.py"]

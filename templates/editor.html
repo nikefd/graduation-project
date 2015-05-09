@@ -1,59 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-  <title>Editor</title>
-  <link rel="stylesheet" href="../static/css/bootstrap.min.css" />
-  <link rel="stylesheet "href="../static/css/editor.css" type="text/css" />
-  </head>
-<body>
-<nav class="navbar navbar-default" style="margin-bottom:5px">
-  <div class="container-fluid">
-    <!-- Brand and toggle get grouped for better mobile display -->
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-      <a class="navbar-brand" href="#">Brand</a>
-    </div>
+{% extends "base.html" %}
 
-    <!-- Collect the nav links, forms, and other content for toggling -->
-    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-      <ul class="nav navbar-nav">
-        <li class="active"><a href="#">Learning<span class="sr-only">(current)</span></a></li>
-        <li><a href="#">Coding</a></li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Dropdown <span class="caret"></span></a>
-          <ul class="dropdown-menu" role="menu">
-            <li><a href="#">Action</a></li>
-            <li><a href="#">Another action</a></li>
-            <li><a href="#">Something else here</a></li>
-            <li class="divider"></li>
-            <li><a href="#">Separated link</a></li>
-            <li class="divider"></li>
-            <li><a href="#">One more separated link</a></li>
-          </ul>
-        </li>
-      </ul>
-      <form class="navbar-form navbar-left" role="search">
-        <div class="form-group">
-          <input type="text" class="form-control" placeholder="Search">
-        </div>
-        <button type="submit" class="btn btn-default">Submit</button>
-      </form>
-      <ul class="nav navbar-nav navbar-right">
-        <li><a href="#">Register</a></li>
-        <li><a href="#">Login</a></li>
-      </ul>
-    </div><!-- /.navbar-collapse -->
-  </div><!-- /.container-fluid -->
-</nav>
+{% block body %}
 <div class="row">
-    <div id="book" class="col-sm-3">
+    <div id="tree" class="col-sm-3">
     </div>
     <div id="complier" class="col-sm-9">
         <label>Mode:</label>
@@ -85,15 +34,182 @@ int main()
         <div style="float:right; width: 100%; height: 50px; background:#1a2125; padding:8px">
             <p>
                 <input type="button" onclick="DispatchText()" class="btn btn-primary" value="Run Code">
+                <input type="button" onclick="" class="btn btn-primary" value="Save">
                 <input type="button" onclick="Reset()" class="btn btn-danger" value="Reset Code">
             </p>
         </div>
         <div id="console"></div>
    </div>
 </div>
+<div id="ip" data-ip={{ host }}></div>
 <script src="../static/js/jquery-2.1.3.min.js" type="text/javascript"></script>
 <script src="../static/js/src/ace.js" type="text/javascript" charset="utf-8"></script>
 <script src="../static/js/bootstrap.min.js" type="text/javascript"></script>
 <script src="../static/js/jqconsole.js" type="text/javascript" charset="utf-8"></script>
 <script src="../static/js/editor.js" type="text/javascript" charset="utf-8"></script>
-</html>
+<script src="../static/dist/jstree.js"></script>
+<script>
+  $(function () {
+    $(window).resize(function () {
+      var h = Math.max($(window).height() - 0, 420);
+      $('#container, #data, #tree, #data .content').height(h).filter('.default').css('lineHeight', h + 'px');
+    }).resize();
+
+    $('#tree')
+      .jstree({
+        'core' : {
+          'data' : {
+            'url' : '/auth/fileop?operation=get_node',
+            'data' : function (node) {
+              return { 'id' : node.id };
+            }
+          },
+          'check_callback' : function(o, n, p, i, m) {
+            if(m && m.dnd && m.pos !== 'i') { return false; }
+            if(o === "move_node" || o === "copy_node") {
+              if(this.get_node(n).parent === this.get_node(p).id) { return false; }
+            }
+            return true;
+          },
+          'themes' : {
+            'responsive' : false,
+            'variant' : 'small',
+            'stripes' : true
+          }
+        },
+        'sort' : function(a, b) {
+          return this.get_type(a) === this.get_type(b) ? (this.get_text(a) > this.get_text(b) ? 1 : -1) : (this.get_type(a) >= this.get_type(b) ? 1 : -1);
+        },
+        'contextmenu' : {
+          'items' : function(node) {
+            var tmp = $.jstree.defaults.contextmenu.items();
+            delete tmp.create.action;
+            tmp.create.label = "New";
+            tmp.create.submenu = {
+              "create_folder" : {
+                "separator_after"  : true,
+                "label"        : "Folder",
+                "action"      : function (data) {
+                  var inst = $.jstree.reference(data.reference),
+                    obj = inst.get_node(data.reference);
+                  inst.create_node(obj, { type : "default" }, "last", function (new_node) {
+                    setTimeout(function () { inst.edit(new_node); },0);
+                  });
+                }
+              },
+              "create_file" : {
+                "label"        : "File",
+                "action"      : function (data) {
+                  var inst = $.jstree.reference(data.reference),
+                    obj = inst.get_node(data.reference);
+                  inst.create_node(obj, { type : "file" }, "last", function (new_node) {
+                    setTimeout(function () { inst.edit(new_node); },0);
+                  });
+                }
+              }
+            };
+            if(this.get_type(node) === "file") {
+              delete tmp.create;
+            }
+            return tmp;
+          }
+        },
+        'types' : {
+          'default' : { 'icon' : 'folder' },
+          'file' : { 'valid_children' : [], 'icon' : 'file' }
+        },
+        'unique' : {
+          'duplicate' : function (name, counter) {
+            return name + ' ' + counter;
+          }
+        },
+        'plugins' : ['state','dnd','sort','types','contextmenu','unique']
+      })
+      .on('delete_node.jstree', function (e, data) {
+        $.get('/auth/fileop?operation=delete_node', { 'id' : data.node.id })
+          .fail(function () {
+            data.instance.refresh();
+          });
+      })
+      .on('create_node.jstree', function (e, data) {
+        $.get('/auth/fileop?operation=create_node', { 'type' : data.node.type, 'id' : data.node.parent, 'text' : data.node.text })
+          .done(function (d) {
+            data.instance.set_id(data.node, d.id);
+          })
+          .fail(function () {
+            data.instance.refresh();
+          });
+      })
+      .on('rename_node.jstree', function (e, data) {
+        $.get('/auth/fileop?operation=rename_node', { 'id' : data.node.id, 'text' : data.text })
+          .done(function (d) {
+            data.instance.set_id(data.node, d.id);
+          })
+          .fail(function () {
+            data.instance.refresh();
+          });
+      })
+      .on('move_node.jstree', function (e, data) {
+        $.get('/auth/fileop?operation=move_node', { 'id' : data.node.id, 'parent' : data.parent })
+          .done(function (d) {
+            //data.instance.load_node(data.parent);
+            data.instance.refresh();
+          })
+          .fail(function () {
+            data.instance.refresh();
+          });
+      })
+      .on('copy_node.jstree', function (e, data) {
+        $.get('/auth/fileop?operation=copy_node', { 'id' : data.original.id, 'parent' : data.parent })
+          .done(function (d) {
+            //data.instance.load_node(data.parent);
+            data.instance.refresh();
+          })
+          .fail(function () {
+            data.instance.refresh();
+          });
+      })
+      .on('changed.jstree', function (e, data) {
+        if(data && data.selected && data.selected.length) {
+          $.get('/auth/fileop?operation=get_content&id=' + data.selected.join(':'), function (d) {
+            if(d && typeof d.type !== 'undefined') {
+              $('#data .content').hide();
+              switch(d.type) {
+                case 'text':
+                case 'txt':
+                case 'md':
+                case 'js':
+                case 'json':
+                case 'css':
+                case 'html':
+                case 'htm':
+                case 'xml':
+                case 'c':
+                case 'cpp':
+                case 'h':
+                case 'sql':
+                case 'log':
+                case 'py':
+                case 'rb':
+                case 'php':
+                case 'htaccess':
+                case 'java':
+                    editor.setValue(d.content);
+                    break;
+                default:
+                    editor.setValue(d.content);
+                    break;
+              }
+            }
+          });
+        }
+        else {
+          $('#data .content').hide();
+          $('#data .default').html('Select a file from the tree.').show();
+        }
+      });
+  });
+  </script>
+
+
+{% end %}
