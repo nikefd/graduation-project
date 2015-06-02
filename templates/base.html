@@ -9,9 +9,8 @@
     <link rel="stylesheet "href="../static/css/editor.css" type="text/css" />
     <link rel="stylesheet" href="./../static/dist/themes/default/style.min.css" />
     <style>
-  		html, body { background:#ebebeb; font-size:10px; font-family:Verdana; margin:0; padding:0; }
-  		#container { min-width:320px; margin:0px auto 0 auto; background:white; border-radius:0px; padding:0px; overflow:hidden; }
-  		#tree { float:left; min-width:319px; border-right:1px solid silver; overflow:auto; padding:0px 0; }
+  		html, body { overflow-x:hidden; background:#ebebeb; font-family:Verdana; margin:0; padding:0;}
+  		#tree { float:left; border-right:1px solid silver; overflow:auto; padding:0px 0; font-size:13px;}
   
   		#tree .folder { background:url('./../static/file_sprite.png') right bottom no-repeat; }
   		#tree .file { background:url('./../static/file_sprite.png') 0 0 no-repeat; }
@@ -51,7 +50,7 @@
         </div>
           <ul class="nav navbar-nav">
             <li class="active"><a href="/">Learning<span class="sr-only">(current)</span></a></li>
-            <li><a href="/">Coding</a></li>
+               {% raw _('<li><a href="%(url)s">Coding</a></li>') % {"url": "/ws"} %}
             </li>
           </ul>
           <ul class="nav navbar-nav navbar-right">

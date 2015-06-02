@@ -62,20 +62,12 @@ class Route(tornado.web.RequestHandler):
 
 class User(object):
     def __init__(self, uid=None, name=None):
-        print "uid"
-        print uid
         if uid is None and not name:
             uid = os.getuid()
-            print "uid2"
-            print uid
         if uid is not None:
             self.pw = pwd.getpwuid(uid)
-            print "here is"
-            print self.pw
         else:
             self.pw = pwd.getpwnam(name)
-            print "here is pw"
-            print self.pw
         if self.pw is None:
             raise LookupError('Unknown user')
 
@@ -111,14 +103,11 @@ class User(object):
     def __repr__(self):
         return "%s [%r]" % (self.name, self.uid)
 
-#logging.basicConfig(level=logging.INFO,
-#                filename='myapp.log',
-#                filemode='w')
-
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r"/", MainHandler),
+            (r"/ws", Coding),
             (r"/websocket(?:/user/([^/]+))?/?(?:/wd/(.+))?", WebSocketHandler),
             (r"/auth/create", AuthCreateHandler),
             (r"/auth/login", AuthLoginHandler),
@@ -150,6 +139,15 @@ class BaseHandler(tornado.web.RequestHandler):
         if not user_id: return None
         return self.db.get("SELECT * FROM user WHERE id = %s", int(user_id))
 
+class Coding(BaseHandler, tornado.web.RequestHandler):
+    def get(self):
+        if self.current_user:
+            global username
+            username = self.current_user.name
+            self.render("coding.html", error=None)
+        else:
+            self.render("home.html")
+
 class MainHandler(BaseHandler):
     def get(self):
         if self.current_user:
@@ -163,18 +161,12 @@ class MainHandler(BaseHandler):
 
 class AuthFileOperation(BaseHandler):
     def get(self):
-        print "operation"
-        print self.get_argument("operation")
         op = self.get_argument("operation")
         id = self.get_argument("id")
         self.set_header('Content-Type', 'application/json')
         if op == "get_node":
             node = id + '/' if id != '#' else '/userdata/' + self.current_user.name + '/'
-            print "node:"
-            print node
             rslt = self.lst(node, id == '#')
-            print "rslt:"
-            print rslt
             i = 0
             if type(rslt) == list:
                 if len(rslt) == 0:
@@ -196,25 +188,17 @@ class AuthFileOperation(BaseHandler):
         elif op == "get_content":
             node = id if id != '#' else '/userdata/' + self.current_user.name
             rslt = self.data(node)
-            print "rslt"
-            print rslt
             self.write(rslt)
         elif op == "create_node":
             node = id if id != '/' else '/userdata/' + self.current_user.name
             name = "New-node"
             type_node = self.get_argument("type")
             rslt = self.create(node, name, type_node != 'file')
-            print rslt
             self.write(rslt)
         elif op == "rename_node":
-            print "rename_node id:"
-            print id
             node = id if id != '/' else '/userdata/' + self.current_user.name
-            print "rename_node:"
-            print node
             name = self.get_argument("text")
             rslt = self.rename(node, name)
-            print rslt
             self.write(rslt)
         elif op == "delete_node":
             node = id if id != '/' else '/userdata/' + self.current_user.name
@@ -267,7 +251,6 @@ class AuthFileOperation(BaseHandler):
         new.append(name)
         str = '/'
         new = str.join(new)
-        print "mv " + dir + ' ' + new
         subprocess.call("mv " + dir + ' ' + new, shell = True)
         return {'id' : name}
 
@@ -281,22 +264,18 @@ class AuthFileOperation(BaseHandler):
 
     def data(self, node):
         dir = node
+        ext = dir[dir.rfind(".") + 1:]
+        rslt = {'type' : ext, 'content' :'File not recognized!'}
         if os.path.isfile(dir):
-            ext = dir[dir.rfind(".") + 1:]
-            rslt = {'type' : ext, 'content' :'File not recognized!'}
             case = ['txt', 'text', 'md', 'js', 'json', 'css', 'html', 'htm', 'xml', 'c', 'cpp', 'h', 'sql', 'log', 'py', 'rb', 'php', 'htaccess', 'java']
             for item in case:
                 if ext == item:
                     rslt['content'] = open(node).read(1000)
                     break
-        else:
-            rslt = ''
         return rslt
 
     def lst(self, node, with_root = False):
         dir = node
-        print "dir:"
-        print dir
         lst = os.listdir(dir)
         res = []
         for item in lst:
@@ -304,20 +283,10 @@ class AuthFileOperation(BaseHandler):
                 continue
             if os.path.isdir(dir + '/' + item):
                 res.append({"text" : item, "children" : True, "id" : dir + item, "icon" : "folder"})
-                print "dir"
             else:
                 res.append({"text" : item, "children" : False, "id" : dir + item, "type" : "file", "icon" : "file file-" + item[item.rfind(".") + 1:] })
-                print "file"
         if with_root and node == '/userdata/' + self.current_user.name + '/':
             res = {'text' : self.current_user.name, 'children' : res, 'id' : '/', 'icon' : 'folder', 'state' : {'open' : True, 'disable' : True}}
-        print "res:"
-        print res
-        print "lst:"
-        print lst
-        print "node:"
-        print node
-        print "with_root:"
-        print with_root
         return res
 
 class AuthCreateHandler(BaseHandler):
@@ -356,6 +325,7 @@ class AuthCreateHandler(BaseHandler):
                 hashed_password)
             # Create the user directionary when register
             subprocess.call("mkdir /userdata/" + self.get_argument("name"), shell=True)
+            subprocess.call("cp -r example /userdata/" + self.get_argument("name"), shell=True)
             self.set_secure_cookie("tjide_user", str(author_id))
             self.redirect("/")
         else:
@@ -390,26 +360,45 @@ class AuthLogoutHandler(BaseHandler):
 
 class WebSocketHandler(BaseHandler, Route, tornado.websocket.WebSocketHandler):
 
+    waiters = set()
     terminals = set()
     def open(self, user, path):
+        subprocess.call("docker rm -f " + self.current_user.name, shell= True)
+        for waiter in WebSocketHandler.waiters:
+            waiter.write_message("new_user")
+            break
+        WebSocketHandler.waiters.add(self)
         self.fd = None
         path = "/home/foo/workplace/graduation-project"
         self.path = path
-        # print "path"
-        # print path
-        # self.callee = User(name=self.current_user.name)
         self.callee = User(name="tjide")
         self.pty()
 
+    def on_close(self):
+        subprocess.call("docker rm -f " + self.current_user.name, shell= True)
+        WebSocketHandler.waiters.remove(self)
+
     def pty(self):
         self.pid, self.fd = pty.fork()
-        # print "pid fd:"
-        # print self.pid
-        # print self.fd
         if self.pid == 0:
             self.shell()
         else:
             self.communicate()
+
+    def send_update(cls, message):
+        message = base64.b64encode(message)
+        for waiter in cls.waiters:
+            try:
+                waiter.write_message(message)
+            except:
+                logging.error("Error sending message", exc_info=True)
+
+    def send_initvalue(cls, message):
+        message = base64.b64encode(message)
+        message = "initvalue" + message;
+        for waiter in cls.waiters:
+            waiter.write_message(message);
+            waiter.write_message("make the sendall = 1")
 
     def shell(self):
         try:
@@ -426,9 +415,6 @@ class WebSocketHandler(BaseHandler, Route, tornado.websocket.WebSocketHandler):
 
     def communicate(self):
         fcntl.fcntl(self.fd, fcntl.F_SETFL, os.O_NONBLOCK)
-
-        print "self.fd:"
-        print self.fd
         def utf8_error(e):
             self.log.error(e)
 
@@ -455,65 +441,81 @@ class WebSocketHandler(BaseHandler, Route, tornado.websocket.WebSocketHandler):
                 read = ''
 
             self.log.info('READ>%r' % read)
-            print "read:"
-            print read
-            print "read-end"
             global outlabel
             read = "code" + read
             if read and len(read) != 0 and self.ws_connection and outlabel:
                 self.write_message(read.decode('utf-8', 'replace'))
             else:
                 events = ioloop.ERROR
-            self.write_message("input")
+            if read[-9:] == "/opt/gr$ ":   #************************************I change here*************************
+                self.write_message("end")
+                global username
+                subprocess.call("rm -rf /userdata/" + username +"/temp", shell=True)
+            else:
+                self.write_message("input")
             outlabel = True
 
+    def send_talking(cls, message, user):
+        send_user = user + ": "
+        send_message = base64.b64encode(message)
+        for waiter in cls.waiters:
+            try:
+                waiter.write_message("talking" + send_user + send_message)
+            except:
+                logging.error("Error sending message", exc_info=True)
+
     def on_message(self, message):
+        message_r = base64.b64decode(message)
+        global username
+	username = self.current_user.name
         if not hasattr(self, 'writer'):
             self.on_close()
             self.close()
             return
-        global username
+	if message_r[0:7] == "talking":
+            self.send_talking(message_r[7:], username)
+            return
+        if message_r[0:9] == "initvalue":
+            self.send_initvalue(message_r[9:])
+            return
+        if message_r[0:4] == "work":
+            self.send_update(message_r[4:])
+            return
         command = ""
-        message_r = base64.b64decode(message)
-        print message_r
-        if message_r[0:4] == "code":
+        if message_r[0:4] == "dir:":
             message_r = message_r[4:]
-            if message_r[0:4] == "cpp ":
-                message_r = message_r[4:]
-                f = open("/userdata/" + username +  "/test.cpp", "w")
-                print >> f, message_r
-                f.close()
-                # command = "docker run --rm --volumes-from dbdata nikefd/gcc g++-4.8 /dbdata/foo/test.cpp -o /dbdata/foo/test && /dbdata/foo/test"
-                command = "docker run --rm -v /home/nikefd/workplace/userdata/" + username + ":/data nikefd/gcc g++ /data/test.cpp -o /data/test && docker run --rm -i -v /home/nikefd/workplace/userdata/" + username + ":/data nikefd/gcc /data/test"
-            elif message_r[0:4] == "js  ":
-                message_r = message_r[4:]
-                message_s = ''
-                label = "js"
-            elif message_r[0:4] == "java":
-                message_r = message_r[4:]
-                label = "java"
-            elif message_r[0:4] == "html":
-                message_r = message_r[4:]
-                label = "html"
-            elif message_r[0:4] == "py  ":
-                message_r = message_r[4:]
-                f = open("/userdata/" + username +  "/test.py", "w")
-                print >> f, message_r
-                f.close()
-                command = "docker run --rm -i -v /home/nikefd/workplace/userdata/" + username + ":/data nikefd/python python /data/test.py"
-            elif message_r[0:4] == "php ":
-                message_r = message_r[4:]
-                f = open("/userdata/" + username +  "/test.php", "w")
-                print >> f, message_r
-                command = "docker run --rm -i -v /home/nikefd/workplace/userdata/" + username + ":/data nikefd/php php /data/test.php"
+            sepa = message_r.find(' ')
+            dir = message_r[:sepa]
+            content = message_r[sepa + 1:]
+            if os.path.isdir(dir):
+                raise Exception("Cannot execuse dir!")
+            f = open(dir, "w")
+            print >> f, content
+            f.close()
+            ext = dir[dir.rfind(".") + 1:]
+            subprocess.call("mkdir /userdata/" + username + "/temp", shell=True)
+            if ext == "c" or ext == "cpp":
+                command = "docker run --rm -v /home/nikefd/workplace/userdata/" + username + ":/userdata/" + username + " nikefd/gcc g++ " + dir + " -o /userdata/" + username + "/temp/test && docker run -m 128m -c 512 --rm -i -v /home/nikefd/workplace/userdata/" + username + ":/data --name "+ username + " nikefd/gcc /data/temp/test"
+            elif ext == "py":
+                command = "docker run -m 128m -c 512 --rm -i -v /home/nikefd/workplace/userdata/" + username + ":/userdata/" + username + " nikefd/python python " + dir
+            elif ext == "php":
+                command = "docker run -m 128m -c 512 --rm -i -v /home/nikefd/workplace/userdata/" + username + ":/userdata/" + username + " nikefd/php php " + dir
+            elif ext == "java":
+                parent = dir[:dir.rfind("/")]
+                jfile = dir[dir.rfind("/") + 1:]
+                cls = jfile[:jfile.rfind(".")]
+                command = "docker run --rm -v /home/nikefd/workplace/userdata/" + username + ":/userdata/" + username + " nikefd/java /usr/lib/jvm/default-jvm/bin/javac " + dir + " -d /userdata/" + username + "/temp && docker run -m 128m -c 512 --rm -i -v /home/nikefd/workplace/userdata/" + username + ":/userdata/" + username + " --name "+ username + " nikefd/java java -classpath " + "/userdata/" + username + "/temp " + cls
+            elif ext == "js":
+                self.write_message("codeI am feel really sorry, we haven't support js now! hhhhhhhhh")
+            else:
+                self.write_message("codeHey, what do you want to do ?")
+                return
             self.writer.write(command.decode('utf-8', 'replace'))
             self.writer.write(u'\n')
             self.writer.flush()
-
         elif message_r[0:4] == "docs":
             message_r = message_r[4:]
             docs = "example." + message_r
-            print docs
             f = open("./docs/" + docs, "r")
             message_s = f.read()
             message_s = "docs" + message_s
