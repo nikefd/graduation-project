@@ -49,8 +49,9 @@
           <a class="navbar-brand" href="/">{{ escape(handler.settings["blog_title"]) }}</a>
         </div>
           <ul class="nav navbar-nav">
-            <li class="active"><a href="/">Learning<span class="sr-only">(current)</span></a></li>
-               {% raw _('<li><a href="%(url)s">Coding</a></li>') % {"url": "/ws"} %}
+            <li class="active"><a href="/">Coding<span class="sr-only">(current)</span></a></li>
+               {% raw _('<li><a href="%(url)s">Chatting</a></li>') % {"url": "/ws"} %}
+               {% raw _('<li><a href="%(url)s">Searching</a></li>') % {"url": "/search"} %}
             </li>
           </ul>
           <ul class="nav navbar-nav navbar-right">

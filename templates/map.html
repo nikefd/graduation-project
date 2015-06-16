@@ -1,0 +1,147 @@
+<html>
+<head>
+<title>{{ escape(handler.settings["blog_title"]) }}</title>
+<link rel="stylesheet" href="../static/css/bootstrap.min.css" />
+<style>
+html,
+body,
+#map {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#map {
+    background: #58B;
+}
+
+.dl-horizontal {
+    margin-bottom:0;
+}
+
+.dl-horizontal dd {
+    margin-left: 80px;
+}
+
+.dl-horizontal dt {
+    width: 60px;
+}
+</style>
+</head>
+
+<body>
+    <nav class="navbar navbar-default" style="margin-bottom:5px">
+      <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+          <a class="navbar-brand" href="/">{{ escape(handler.settings["blog_title"]) }}</a>
+        </div>
+          <ul class="nav navbar-nav">
+            <li><a href="/">Coding<span class="sr-only">(current)</span></a></li>
+               {% raw _('<li><a href="%(url)s">Chatting</a></li>') % {"url": "/ws"} %}
+               {% raw _('<li class="active"><a href="%(url)s">Searching</a></li>') % {"url": "/search"} %}
+            </li>
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+             {% if current_user %}
+               <li><a onclick="dodel()">Share</a></li>
+               <li><a href="/auth/logout?next={{ url_escape(request.uri) }}">{{ _("Sign out") }}</a></li>
+             {% else %}
+               {% raw _('<li><a href="%(url)s">Sign in</a></li>') % {"url": "/auth/login"} %}
+               {% raw _('<li><a href="%(url)s">Register</a></li>') % {"url": "/auth/create"} %}
+             {% end %}
+          </ul>
+        </div><!-- /.navbar-collapse -->
+      </div><!-- /.container-fluid -->
+    </nav>
+<div id="map"></div>
+<script src="http://maps.google.com/maps/api/js?sensor=true&.js" type="text/javascript"></script>
+<script src="../static/js/gmaps.js" type="text/javascript"></script>
+<script src="../static/js/jquery-2.1.3.min.js" type="text/javascript"></script>
+<script src="../static/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+var map = new GMaps({
+    div: '#map',
+    lat: -12.043333,
+    lng: -77.028333
+});
+map.setZoom(2);
+{% for item in items %}
+    GMaps.geocode({
+      address: '{{ item.address }}',
+      callback: function(results, status) {
+        if (status == 'OK') {
+          var latlng = results[0].geometry.location;
+          map.setCenter(latlng.lat(), latlng.lng());
+          map.addMarker({
+            lat: latlng.lat(),
+            lng: latlng.lng(),
+            infoWindow: {
+                content: '<dl class="dl-horizontal"><div style="width:100%" class="center-block"><img src=../static/images/{{item.name}}.jpg class=".center-block"></img></div><dt>Name:</dt><dd>{{item.name}}</dd><dt>Email:</dt><dd>{{item.share_email}}</dd><dt>Interests:</dt><dd>{{item.interests}}</dd>{{item.say}}</dl>'
+            }
+          });
+        }
+      }
+    });
+{% end %}
+function dodel(){
+    $('#myModal').modal('show');
+}
+</script>
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/search/add" method="post" class="form-horizontal" role="form" name="form1">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                </div>
+                <div class="modal-body" style="padding-bottom:0;">
+                    <div id="photo" style="margin-bottom:20px">
+                        <a href="#" data-toggle="modal" data-target="#myModal2">
+                            <img src="../static/images/{{current_user.name}}.jpg" onerror="this.src='../static/images/default.jpg'" alt="zhang" class="img-circle" width="140px" height="140px">
+                        </a>
+                    </div>
+                    <div class="form-group">
+                        <label type="text" class="control-label col-sm-2">Address：</label>
+                        <div class="col-sm-9">
+                            <input name="address" type="text" class="form-control" value="{% if info %} {{ info.address }} {% end %}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label type="type" class="control-label col-sm-2">Email：</label>
+                        <div class="col-sm-9">
+                            <input name="share_email" type="text" class="form-control" value="{% if info %} {{ info.share_email }} {% end %}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label type="text" class="control-label col-sm-2">Interests：</label>
+                        <div class="col-sm-9">
+                            <input name="interests" type="text" class="form-control" value="{% if info %} {{ info.interests }} {% end %}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label type="text" class="control-label col-sm-2">Say：</label>
+                        <div class="col-sm-9">
+                            <input name="say" type="text" class="form-control" value="{% if info %} {{ info.say }} {% end %}">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+                {% module xsrf_form_html() %}
+                <input type="submit" class="btn btn-primary" name="share" value="Share"></input>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="myModal2" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="height:450px; width:650px;">
+            <embed src="../static/avatar.swf" width="650" height="450" flashVars="imgUrl=../static/images/default.jpg&uploadUrl=/uploadfile&uploadSrc=false" TYPE="application/x-shockwave-flash" allowScriptAccess="always"
+            PLUGINSPAGE="http://www.macromedia.com/go/getflashplayer"></embed>
+        </div>  
+    </div>
+</div>
+</body>
+</html>

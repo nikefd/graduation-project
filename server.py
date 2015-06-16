@@ -34,6 +34,7 @@ import tornado.httpserver
 import tornado.options
 import unicodedata
 import socket
+import time
 from tornado.options import define, options
 
 ip = os.getenv("TOMYSQL_PORT_3306_TCP_ADDR")
@@ -108,6 +109,9 @@ class Application(tornado.web.Application):
         handlers = [
             (r"/", MainHandler),
             (r"/ws", Coding),
+            (r"/uploadfile", Upload),
+            (r"/search", Searching),
+            (r"/search/add", AddInfo),
             (r"/websocket(?:/user/([^/]+))?/?(?:/wd/(.+))?", WebSocketHandler),
             (r"/auth/create", AuthCreateHandler),
             (r"/auth/login", AuthLoginHandler),
@@ -118,7 +122,7 @@ class Application(tornado.web.Application):
             blog_title=u"TJIDE",
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
-            xsrf_cookies=True,
+            xsrf_cookies=False,
             cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
             login_url="/auth/login",
             debug=True,
@@ -148,6 +152,36 @@ class Coding(BaseHandler, tornado.web.RequestHandler):
         else:
             self.render("home.html")
 
+class Upload(BaseHandler, tornado.web.RequestHandler):
+    def post(self):
+        savepath = "static/images/" + self.current_user.name + ".jpg"
+        print savepath
+        pic1 = base64.b64decode(self.get_argument("pic1"))
+        f = open(savepath, 'w')
+        f.write(pic1)
+        f.close()
+        items = self.db.query("SELECT * FROM share")
+        for item in items:
+            print item.address
+            print item.name
+        info = self.db.get("SELECT * FROM share WHERE name=%s", self.current_user.name)
+        self.render("map.html", items=items, info=info)
+
+
+class Searching(BaseHandler, tornado.web.RequestHandler):
+    def get(self):
+        if self.current_user:
+            global username
+            username = self.current_user.name
+            items = self.db.query("SELECT * FROM share")
+            for item in items:
+                print item.address
+                print item.name
+            info = self.db.get("SELECT * FROM share WHERE name=%s", self.current_user.name)
+            self.render("map.html", items=items, info=info)
+        else:
+            self.render("home.html")
+
 class MainHandler(BaseHandler):
     def get(self):
         if self.current_user:
@@ -155,7 +189,6 @@ class MainHandler(BaseHandler):
             global username
             username = self.current_user.name
             self.render("editor.html", host=server_ip)
-            subprocess.call("touch " + self.current_user.name + ".cpp", shell=True)
         else:
             self.render("home.html")
 
@@ -252,7 +285,7 @@ class AuthFileOperation(BaseHandler):
         str = '/'
         new = str.join(new)
         subprocess.call("mv " + dir + ' ' + new, shell = True)
-        return {'id' : name}
+        return {'id' : new}
 
     def remove(self, node):
         dir = node
@@ -288,6 +321,35 @@ class AuthFileOperation(BaseHandler):
         if with_root and node == '/userdata/' + self.current_user.name + '/':
             res = {'text' : self.current_user.name, 'children' : res, 'id' : '/', 'icon' : 'folder', 'state' : {'open' : True, 'disable' : True}}
         return res
+
+class AddInfo(BaseHandler):
+    def post(self):
+        print self.current_user.name
+        print self.get_argument("address")
+        print self.get_argument("share_email")
+        print self.get_argument("interests")
+        print self.get_argument("say")
+        username = self.db.get("SELECT * FROM share WHERE name = %s",
+                                self.current_user.name)
+        if username:
+            self.db.execute(
+                "UPDATE share SET address=%s, share_email=%s, interests=%s, say=%s WHERE name=%s",
+                self.get_argument("address"), self.get_argument("share_email"),
+                self.get_argument("interests"), self.get_argument("say"),
+                self.current_user.name)
+        else:
+            self.db.execute(
+                "INSERT INTO share (name, address, share_email, interests, say, share) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                self.current_user.name, self.get_argument("address"),
+                self.get_argument("share_email"), self.get_argument("interests"),
+                self.get_argument("say"), 1)
+        items = self.db.query("SELECT * FROM share")
+        for item in items:
+            print item.address
+            print item.name
+        info = self.db.get("SELECT * FROM share WHERE name=%s", self.current_user.name)
+        self.render("map.html", items=items, info=info)
 
 class AuthCreateHandler(BaseHandler):
     def get(self):
@@ -375,7 +437,6 @@ class WebSocketHandler(BaseHandler, Route, tornado.websocket.WebSocketHandler):
         self.pty()
 
     def on_close(self):
-        subprocess.call("docker rm -f " + self.current_user.name, shell= True)
         WebSocketHandler.waiters.remove(self)
 
     def pty(self):
@@ -439,16 +500,18 @@ class WebSocketHandler(BaseHandler, Route, tornado.websocket.WebSocketHandler):
                 read = self.reader.read()
             except IOError:
                 read = ''
-
+            print read
             self.log.info('READ>%r' % read)
             global outlabel
+            print outlabel
             read = "code" + read
             if read and len(read) != 0 and self.ws_connection and outlabel:
                 self.write_message(read.decode('utf-8', 'replace'))
             else:
                 events = ioloop.ERROR
-            if read[-9:] == "/opt/gr$ ":   #************************************I change here*************************
+            if read[-6:] == "/try$ ":   #************************************I change here*************************
                 self.write_message("end")
+                subprocess.call("docker rm -f " + self.current_user.name, shell= True)
                 global username
                 subprocess.call("rm -rf /userdata/" + username +"/temp", shell=True)
             else:
